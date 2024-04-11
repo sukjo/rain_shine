@@ -2,6 +2,7 @@
 // Resources:
 // https://usankycheng.notion.site/Sending-data-from-a-MCU-to-a-MQTT-broker-c91cc63b8cb84f839694b3c10c4cc235
 // https://www.keyoftech.com/mastering-the-arduino-watchdog-timer-a-comprehensive-tutorial/
+// https://github.com/gpb01/wdt_samd21
 
 #include <WiFiNINA.h>
 #include <ArduinoMqttClient.h>
@@ -12,7 +13,7 @@ const int pinVolume = A0;
 const int pinMotor = 10;
 const int pinVoltage = 9;
 
-const int volThreshold = 375;
+const int volThreshold = 375; // arbitrary for now; will need to gauge volume range on site
 
 #define DC_OFFSET 0  // DC offset in mic signal - if unusure, leave 0
 #define NOISE 100    // Noise/hum/interference in mic signal
@@ -82,8 +83,7 @@ void setup() {
   Serial.print("Subscribing to topic: ");
   Serial.println(publish_topic);
 
-  // initiate watchdog timer with a 8sec count down
-  // you can look up differnt duration here: https://github.com/gpb01/wdt_samd21
+  // system will be reset if the software gets stuck or takes too long (>8sec) to complete an operation
   wdt_init(WDT_CONFIG_PER_8K);
 }
 
@@ -126,14 +126,12 @@ void loop() {
 
   delay(3000);
 
-  // reset the watchdog timer, or the watch dog will trigger the MCU to restart
-  // system will be reset if the software gets stuck or takes too long to complete an operation
-  wdt_reset();
+  wdt_reset(); // tells the watchdog timer that your program is still running as it should
 }
 
 void checkMqttConnection() {
   if (!mqttClient.connected()) {
-    Serial.print("MQTT not connected. Attempting to reconnect... error code:");
+    Serial.print("MQTT not connected. Attempting to reconnect. Error code: ");
     Serial.println(mqttClient.connectError());
 
     while (!mqttClient.connect(broker, port)) { // attempt to reconnect
